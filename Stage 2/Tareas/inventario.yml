@@ -1,0 +1,35 @@
+- name: Recolectar información detallada de los equipos de la sala T-201
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+    - name: Crear directorio local para resultados
+      delegate_to: localhost
+      file:
+        path: "./resultados"
+        state: directory
+
+    - name: Obtener nombre del procesador
+      win_shell: "Get-CimInstance Win32_Processor | Select-Object -ExpandProperty Name"
+      register: cpu_info
+
+    - name: Obtener dirección MAC
+      win_shell: "(Get-NetAdapter | Where-Object {$_.Status -eq 'Up'} | Select-Object -First 1).MacAddress"
+      register: mac_info
+
+    - name: Obtener dirección IPv4
+      win_shell: "(Get-NetIPAddress -AddressFamily IPv4 | Where-Object {$_.InterfaceAlias -notmatch 'Loopback|Virtual|VPN'} | Select-Object -First 1).IPAddress"
+      register: ip_info
+
+    - name: Guardar información del equipo
+      delegate_to: localhost
+      copy:
+        content: |
+          Hostname: {{ ansible_hostname }}
+          SO: {{ ansible_distribution }} {{ ansible_distribution_version }}
+          Procesador: {{ cpu_info.stdout | trim | default('No detectado') }}
+          Memoria RAM: {{ ansible_memtotal_mb }} MB
+          IP: {{ ip_info.stdout | trim | default('No detectada') }}
+          MAC: {{ mac_info.stdout | trim | default('No detectada') }}
+          Fecha de recolección: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+        dest: "./resultados/{{ inventory_hostname }}.txt"

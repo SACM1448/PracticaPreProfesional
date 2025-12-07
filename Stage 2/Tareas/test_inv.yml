@@ -1,0 +1,51 @@
+---
+- name: Reporter GitHub autosuficiente v6 (token público legible)
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - name: Asegurar carpetas necesarias
+      ansible.windows.win_file:
+        path: "{{ item }}"
+        state: directory
+      loop:
+        - "C:\\Temp"
+        - "C:\\Users\\Public"
+
+    - name: Limpiar token anterior
+      ansible.windows.win_file:
+        path: "C:\\Users\\Public\\.github_token"
+        state: absent
+
+    - name: Copiar token (legible por todos)
+      ansible.windows.win_copy:
+        src: "./archivos/.github_token"
+        dest: "C:\\Users\\Public\\.github_token"
+
+    - name: Ajustar permisos del token
+      ansible.windows.win_shell: |
+        icacls "C:\Users\Public\.github_token" /inheritance:e /grant *S-1-1-0:R /T /C /Q
+      args:
+        executable: cmd.exe
+
+    - name: Copiar script principal
+      ansible.windows.win_copy:
+        src: "./archivos/report_ip_to_github.ps1"
+        dest: "C:\\Temp\\report_ip_to_github.ps1"
+
+    - name: Crear wrapper .cmd en Startup común (v6)
+      ansible.windows.win_copy:
+        content: |
+          @echo off
+          echo [%date% %time%] Iniciando wrapper > C:\Temp\report_startup_log.txt
+          powershell.exe -ExecutionPolicy Bypass -NoProfile -WindowStyle Hidden -File "C:\Temp\report_ip_to_github.ps1" -RepoOwner "Ceper-Ansible" -RepoName "ip-reports" -TokenPath "C:\Users\Public\.github_token" >> C:\Temp\report_startup_log.txt 2>&1
+          echo [%date% %time%] Wrapper finalizado >> C:\Temp\report_startup_log.txt
+        dest: "C:\\ProgramData\\Microsoft\\Windows\\Start Menu\\Programs\\StartUp\\run_report_at_logon.cmd"
+
+    - name: Confirmar creación del wrapper
+      ansible.windows.win_shell: |
+        dir "C:\ProgramData\Microsoft\Windows\Start Menu\Programs\StartUp"
+      register: startup_check
+
+    - debug:
+        var: startup_check.stdout

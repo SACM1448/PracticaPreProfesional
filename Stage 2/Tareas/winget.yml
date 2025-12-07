@@ -1,0 +1,73 @@
+---
+- name: Actualización automática y silenciosa con Winget
+  hosts: all
+  gather_facts: yes
+
+  tasks:
+    - name: Crear directorio local para logs
+      delegate_to: localhost
+      file:
+        path: "./logs"
+        state: directory
+
+    - name: Buscar ruta real de winget
+      win_shell: |
+        $paths = @(
+          "$env:LOCALAPPDATA\Microsoft\WindowsApps\winget.exe",
+          "$env:ProgramFiles\WindowsApps\Microsoft.DesktopAppInstaller*\winget.exe",
+          "C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_*\winget.exe"
+        )
+        foreach ($p in $paths) {
+          $resolved = Get-Item -Path $p -ErrorAction SilentlyContinue
+          if ($resolved) { Write-Output $resolved.FullName; break }
+        }
+      register: winget_path
+
+    - name: Ejecutar actualización si winget está disponible
+      when: winget_path.stdout | trim != ""
+      win_shell: >
+        & "{{ winget_path.stdout | trim }}" upgrade --all
+        --accept-package-agreements --accept-source-agreements --silent;
+        Write-Output "Actualización completada correctamente."
+      register: resultado
+      ignore_errors: yes
+
+    - name: Registrar salida de actualización
+      when: resultado is defined
+      debug:
+        msg: "{{ resultado.stdout | default('Sin salida visible (modo silencioso)') }}"
+
+    - name: Registrar si winget no está disponible
+      when: winget_path.stdout | trim == ""
+      debug:
+        msg: "⚠️ Winget no encontrado en {{ inventory_hostname }}. Instálalo con App Installer desde Microsoft Store."
+
+    - name: Guardar log de ejecución
+      delegate_to: localhost
+      copy:
+        content: |
+          === LOG DE ACTUALIZACIÓN WINGET ===
+          Equipo: {{ inventory_hostname }}
+          Fecha: {{ ansible_date_time.date }} {{ ansible_date_time.time }}
+          Ruta Winget: {{ winget_path.stdout | default('No detectado') }}
+          Resultado:
+          {{ resultado.stdout | default('Sin salida (modo silencioso)') }}
+          Error:
+          {{ resultado.stderr | default('Sin errores') }}
+        dest: "./logs/winget_{{ inventory_hostname }}.txt"
+
+    - name: Crear tarea programada para actualizaciones nocturnas
+      when: winget_path.stdout | trim != ""
+      win_scheduled_task:
+        name: "WingetAutoUpdate"
+        description: "Actualiza aplicaciones automáticamente cada noche a las 2:00 AM"
+        actions:
+          - path: "{{ winget_path.stdout | trim }}"
+            arguments: "upgrade --all --accept-package-agreements --accept-source-agreements --silent"
+        triggers:
+          - type: daily
+            start_boundary: '2025-10-29T02:00:00'
+        username: "{{ ansible_user }}"
+        password: "{{ ansible_password }}"
+        state: present
+        enabled: yes

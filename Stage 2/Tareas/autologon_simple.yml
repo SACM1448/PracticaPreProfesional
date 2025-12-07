@@ -1,0 +1,54 @@
+---
+- name: Habilitar autologon simple para .\estudiantes
+  hosts: ART-ET20102
+  gather_facts: yes
+  tasks:
+
+    - name: Comprobar existencia del usuario local 'estudiantes'
+      ansible.windows.win_shell: |
+        $u = Get-LocalUser -Name "estudiantes" -ErrorAction SilentlyContinue
+        if ($null -eq $u) { Write-Output "NO_EXISTE" } else { Write-Output "EXISTE" }
+      register: usuario_check
+
+    - name: Fallar si el usuario local no existe
+      fail:
+        msg: "El usuario local 'estudiantes' no existe en este equipo. Crea el usuario antes de habilitar autologon."
+      when: usuario_check.stdout.strip() != "EXISTE"
+
+    - name: Establecer DefaultUserName en Winlogon
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon
+        name: DefaultUserName
+        data: estudiantes
+        type: string
+
+    - name: Establecer DefaultPassword en Winlogon (texto plano)
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon
+        name: DefaultPassword
+        data: "T201ndceper"
+        type: string
+
+    - name: Establecer DefaultDomainName como nombre del equipo (cuenta local)
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon
+        name: DefaultDomainName
+        data: "{{ ansible_hostname }}"
+        type: string
+
+    - name: Activar AutoAdminLogon = 1
+      ansible.windows.win_regedit:
+        path: HKLM:\SOFTWARE\Microsoft\Windows NT\CurrentVersion\Winlogon
+        name: AutoAdminLogon
+        data: "1"
+        type: string
+
+    - name: Registrar acción en maestro (log)
+      delegate_to: localhost
+      copy:
+        dest: "./logs/autologon_enabled_{{ inventory_hostname }}.txt"
+        content: "Autologon habilitado en {{ inventory_hostname }} - Usuario: estudiantes - Tiempo: {{ ansible_date_time.iso8601 }}"
+
+    - name: Reiniciar equipo para aplicar autologon
+      ansible.windows.win_reboot:
+        reboot_timeout: 300

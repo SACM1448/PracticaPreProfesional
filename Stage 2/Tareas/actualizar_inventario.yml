@@ -1,0 +1,66 @@
+---
+- name: Actualizar inventario desde GitHub (v2 robusta con depuración)
+  hosts: localhost
+  gather_facts: no
+
+  vars:
+    repo_owner: "Ceper-Ansible"
+    repo_name: "ip-reports"
+    branch: "main"
+    token_path: "./archivos/.github_token"
+    inventory_path: "./inventory.ini"
+    temp_dir: "/tmp/github_reports"
+
+  tasks:
+
+    - name: Leer token desde archivo local
+      ansible.builtin.slurp:
+        src: "{{ token_path }}"
+      register: github_token_file
+
+    - name: Convertir token a texto
+      ansible.builtin.set_fact:
+        github_token: "{{ github_token_file['content'] | b64decode | trim }}"
+
+    - name: Crear carpeta temporal para reportes
+      ansible.builtin.file:
+        path: "{{ temp_dir }}"
+        state: directory
+
+    - name: Obtener lista de archivos desde la API de GitHub
+      ansible.builtin.uri:
+        url: "https://api.github.com/repos/{{ repo_owner }}/{{ repo_name }}/git/trees/{{ branch }}?recursive=1"
+        headers:
+          Authorization: "token {{ github_token }}"
+          Accept: "application/vnd.github.v3+json"
+        return_content: yes
+      register: repo_content
+
+    - name: Mostrar nombres detectados en el repositorio (debug)
+      ansible.builtin.debug:
+        msg: "{{ item.path }}"
+      loop: "{{ repo_content.json.tree | selectattr('type', 'equalto', 'blob') | list }}"
+      when: repo_content.json.tree is defined
+
+    - name: Descargar archivos detectados (sin filtrar extensión)
+      ansible.builtin.get_url:
+        url: "https://raw.githubusercontent.com/{{ repo_owner }}/{{ repo_name }}/{{ branch }}/{{ item.path }}"
+        headers:
+          Authorization: "token {{ github_token }}"
+        dest: "{{ temp_dir }}/{{ item.path | basename }}"
+        force: yes
+      loop: "{{ repo_content.json.tree | selectattr('type', 'equalto', 'blob') | list }}"
+      register: downloads
+      when: repo_content.json.tree | length > 0
+
+    - name: Regenerar inventario
+      ansible.builtin.copy:
+        dest: "{{ inventory_path }}"
+        content: |
+          [windows]
+          {% for f in downloads.results if f.dest is defined %}
+          {% for line in lookup('file', f.dest).splitlines() %}
+          {{ line }}
+          {% endfor %}
+          {% endfor %}
+      when: downloads is defined

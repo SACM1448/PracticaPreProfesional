@@ -1,0 +1,17 @@
+=== LOG DE ACTUALIZACIÓN WINGET ===
+Equipo: ART:ET20111
+Fecha: 2025-10-28 16:54:39
+Ruta Winget: C:\Program Files\WindowsApps\Microsoft.DesktopAppInstaller_1.26.510.0_x64__8wekyb3d8bbwe\winget.exe
+
+Resultado:
+Actualización completada correctamente.
+
+Error:
+Error al ejecutar el programa 'winget.exe': Acceso denegadoEn línea: 1 Carácter: 65
++ ... ing $false; & "C:\Program Files\WindowsApps\Microsoft.DesktopAppInsta ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~.
+En línea: 1 Carácter: 65
++ ... ing $false; & "C:\Program Files\WindowsApps\Microsoft.DesktopAppInsta ...
++                 ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : ResourceUnavailable: (:) [], ApplicationFailedException
+    + FullyQualifiedErrorId : NativeCommandFailed

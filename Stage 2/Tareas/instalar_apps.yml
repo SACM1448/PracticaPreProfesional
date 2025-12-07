@@ -1,0 +1,37 @@
+---
+- name: Instalar todas las aplicaciones desde la carpeta 'archivos'
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - name: Crear carpeta temporal en el equipo remoto
+      ansible.windows.win_file:
+        path: C:\Temp
+        state: directory
+
+    - name: Obtener lista de instaladores locales (.exe y .msi)
+      find:
+        paths: ./archivos
+        patterns: "*.exe,*.msi"
+      register: lista_instaladores
+      delegate_to: localhost
+
+    - name: Copiar instaladores al equipo remoto
+      ansible.windows.win_copy:
+        src: "{{ item.path }}"
+        dest: "C:\\Temp\\{{ item.path | basename }}"
+      loop: "{{ lista_instaladores.files }}"
+
+    - name: Instalar los archivos .msi en modo silencioso
+      ansible.windows.win_package:
+        path: "C:\\Temp\\{{ item.path | basename }}"
+        arguments: "/qn /norestart"
+        state: present
+      loop: "{{ lista_instaladores.files | selectattr('path', 'search', '.msi$') | list }}"
+      register: resultado_msi
+      ignore_errors: yes
+
+    - name: Mostrar resumen de instalación
+      debug:
+        msg:
+          - "Instalaciones MSI: {{ resultado_msi.results | map(attribute='rc') | list }}"

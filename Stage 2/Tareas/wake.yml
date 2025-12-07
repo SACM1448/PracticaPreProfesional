@@ -1,0 +1,11 @@
+---
+- name: Encender equipos de la sala T-201 mediante Wake-on-LAN
+  hosts: all
+  gather_facts: no
+
+  tasks:
+    - name: Enviar paquete mágico para encender el equipo
+      community.general.wakeonlan:
+        mac: "{{ mac_address }}"
+      delegate_to: localhost
+      run_once: false

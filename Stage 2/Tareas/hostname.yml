@@ -1,0 +1,11 @@
+- name: Obtener hostname de Windows remoto
+  hosts: windows
+  gather_facts: no
+  tasks:
+    - name: Ejecutar comando hostname
+      win_command: hostname
+      register: resultado
+
+    - name: Mostrar salida del hostname
+      debug:
+        var: resultado.stdout

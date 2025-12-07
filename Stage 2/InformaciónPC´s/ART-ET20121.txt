@@ -1,0 +1,7 @@
+Hostname: ART-ET20121
+SO: Microsoft Windows 11 Enterprise 10.0.22621.0
+Procesador: 11th Gen Intel(R) Core(TM) i7-11700 @ 2.50GHz
+Memoria RAM: 32490 MB
+IP: 172.27.128.1
+MAC: 74-86-E2-38-31-7A
+Fecha de recolección: 2025-12-03 11:49:33

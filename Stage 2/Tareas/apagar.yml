@@ -1,0 +1,7 @@
+---
+- name: Apagar equipos de la sala T-201
+  hosts: all
+  gather_facts: no
+  tasks:
+    - name: Ejecutar apagado remoto
+      win_shell: shutdown /s /t 0

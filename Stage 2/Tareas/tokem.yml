@@ -1,0 +1,11 @@
+---
+- name: Permitir lectura del token a usuarios estándar
+  hosts: ART-ET20119
+  gather_facts: no
+
+  tasks:
+    - name: Permitir lectura al grupo Users
+      ansible.windows.win_shell: |
+        icacls "C:\ProgramData\.github_token" /grant *S-1-5-32-545:R /T /C
+      args:
+        executable: cmd.exe
